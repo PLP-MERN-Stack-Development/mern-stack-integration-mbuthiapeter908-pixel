@@ -1,89 +1,108 @@
-// src/components/posts/PostCard.jsx
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Calendar, Eye, MessageCircle, User, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom'
+import { formatDistanceToNow } from 'date-fns'
 
 const PostCard = ({ post }) => {
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  // Guard: post not loaded yet
+  if (!post) return null
+
+  // Prefer slug, fallback to _id or id
+  const postIdentifier = post.slug || post._id || post.id
+
+  // If still missing, DO NOT render link
+  if (!postIdentifier) {
+    console.error('Post identifier missing:', post)
+    return null
+  }
 
   return (
-    <div className="bg-white dark:bg-dark-800 rounded-2xl border-2 border-gray-200 dark:border-dark-600 overflow-hidden hover:border-blue-500 dark:hover:border-blue-400 transition-all duration-500 hover:transform hover:-translate-y-2 hover:shadow-2xl group">
-      {/* Featured Image */}
-      <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600 overflow-hidden">
-        {post.featuredImage && post.featuredImage !== 'default-post.jpg' ? (
-          <img 
-            src={`/uploads/${post.featuredImage}`} 
-            alt={post.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <div className="text-white text-4xl font-bold opacity-80">📝</div>
-          </div>
-        )}
-        {/* Category Badge */}
-        <div className="absolute top-4 left-4">
-          <span className="bg-white/90 dark:bg-dark-800/90 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full text-sm font-semibold backdrop-blur-sm">
-            {post.category?.name || 'Uncategorized'}
-          </span>
-        </div>
-      </div>
+    <article className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
 
+{/* Featured Image */}
+<Link to={`/post/${post.slug || post._slug}`}>
+  <div className="aspect-video bg-gray-200 dark:bg-gray-700 overflow-hidden">
+    {post.featuredImage?.url ? (
+      <img
+        src={post.featuredImage.url.startsWith('http') 
+          ? post.featuredImage.url 
+          : `http://localhost:5000${post.featuredImage.url}`}
+        alt={post.title}
+        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+        onError={(e) => {
+          e.target.onerror = null;
+          e.target.src = 'https://via.placeholder.com/800x400?text=Image+Not+Found';
+        }}
+      />
+    ) : (
+      <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
+        No image
+      </div>
+    )}
+  </div>
+</Link>
       {/* Content */}
       <div className="p-6">
+
+        {/* Category */}
+        {post.category && (
+          <Link
+            to={`/?category=${post.category.slug}`}
+            className="inline-block px-3 py-1 text-sm font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-4"
+          >
+            {post.category.name}
+          </Link>
+        )}
+
         {/* Title */}
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-          {post.title}
-        </h3>
+        <Link to={`/posts/${postIdentifier}`}>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+            {post.title}
+          </h2>
+        </Link>
 
         {/* Excerpt */}
-        <p className="text-gray-600 dark:text-gray-300 mb-4 line-clamp-3 leading-relaxed">
-          {post.excerpt || post.content.substring(0, 150) + '...'}
+        <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+          {post.excerpt || post.content?.substring(0, 150)}...
         </p>
 
-        {/* Meta Information */}
-        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400 mb-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-1">
-              <User className="w-4 h-4" />
-              <span className="font-medium">{post.author?.username || 'Anonymous'}</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <Calendar className="w-4 h-4" />
-              <span>{formatDate(post.createdAt)}</span>
-            </div>
+        {/* Meta */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {post.author?.image && (
+              <img
+                src={post.author.image}
+                alt={post.author.name}
+                className="w-8 h-8 rounded-full"
+              />
+            )}
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              {post.author?.name}
+            </span>
           </div>
+
+          {post.createdAt && (
+            <time className="text-sm text-gray-500 dark:text-gray-400">
+              {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+            </time>
+          )}
         </div>
 
-        {/* Stats */}
-        <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
-          <div className="flex items-center space-x-1">
-            <Eye className="w-4 h-4" />
-            <span>{post.viewCount || 0} views</span>
+        {/* Tags */}
+        {post.tags?.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+            {post.tags.slice(0, 3).map(tag => (
+              <Link
+                key={tag}
+                to={`/?search=${tag}`}
+                className="text-xs text-gray-500 dark:text-gray-400"
+              >
+                #{tag}
+              </Link>
+            ))}
           </div>
-          <div className="flex items-center space-x-1">
-            <MessageCircle className="w-4 h-4" />
-            <span>{post.comments?.length || 0} comments</span>
-          </div>
-        </div>
-
-        {/* Read More Button */}
-        <Link
-          to={`/posts/${post.slug || post._id}`}
-          className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform group-hover:scale-105 shadow-lg hover:shadow-xl"
-        >
-          <span>Read More</span>
-          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-        </Link>
+        )}
       </div>
-    </div>
-  );
-};
+    </article>
+  )
+}
 
-export default PostCard;
+export default PostCard
